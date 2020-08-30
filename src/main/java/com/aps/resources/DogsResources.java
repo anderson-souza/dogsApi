@@ -1,39 +1,51 @@
 package com.aps.resources;
 
-import java.util.ArrayList;
+import com.aps.DogsService;
+import com.aps.domain.Dogs;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.List;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.aps.domain.Dogs;
-import com.github.javafaker.Dog;
-import com.github.javafaker.Faker;
 
 @RestController
 @RequestMapping("dogs")
 public class DogsResources {
 
-	private static final int QUANTIDADEREPETICOES = 20000;
+  @Autowired
+  DogsService dogsService;
 
-	@GetMapping
-	@Cacheable("dogs")
-	public List<Dogs> listar() {
+  @GetMapping
+  @Cacheable("dogs")
+  public List<Dogs> listar() {
 
-		Dog fakeDog = new Faker().dog();
+    return dogsService.generateDogsList();
 
-		List<Dogs> dogs = new ArrayList<>();
+  }
 
-		for (int i = 0; i < QUANTIDADEREPETICOES; i++) {
-			Dogs dog = new Dogs(fakeDog.age(), fakeDog.breed(), fakeDog.coatLength(), fakeDog.gender(),
-					fakeDog.memePhrase(), fakeDog.name(), fakeDog.size(), fakeDog.sound());
-			dogs.add(dog);
-		}
+  @GetMapping("/banco")
+  @Cacheable("dogs")
+  public ResponseEntity<Resource> baixarBancoDados() throws IOException {
 
-		return dogs;
+    File file = dogsService.criarBancoDadosJDBC();
+    file.deleteOnExit();
 
-	}
+    InputStreamResource resource = new InputStreamResource(new FileInputStream(file));
 
+    HttpHeaders header = new HttpHeaders();
+    header.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=banco.db");
+
+    return ResponseEntity.ok().headers(header).contentLength(file.length())
+        .contentType(MediaType.APPLICATION_OCTET_STREAM).body(resource);
+
+  }
 }
